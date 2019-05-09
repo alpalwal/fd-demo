@@ -1,0 +1,142 @@
+# Single instance deployment of DivvyCloud
+# https://docs.divvycloud.com/docs/linux-test-drive-deployment
+# Alex C 1/25/19
+
+#Recommended specs:
+# 4 cores
+# 8 GB of memory
+# 30 GB root volume
+
+Parameters: 
+  InstanceType: 
+    Type: String
+    Default: m5.large
+    AllowedValues: 
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+    Description: Instance size for the Divvy system
+  VpcId:
+    Description: VPC Id for the instance to be deployed in
+    Type: AWS::EC2::VPC::Id
+    Default: ''
+  KeyPair:
+    Description: Key pair for the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ''
+  InstanceName:
+    Default: 'FD-Demo'
+    Description: Instance Name
+    Type: String
+  SSHAccessLocation:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+    Description: The IP address range that the instance will be open on for port 22
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+
+Mappings:
+  RegionMap:
+    us-west-1: 
+        AMI: ami-0019ef04ac50be30f 
+    eu-central-1: 
+        AMI: ami-09def150731bdbcc2 
+    cn-north-1: 
+        AMI: ami-0cad3dea07a7c36f9 
+    us-east-1: 
+        AMI: ami-0de53d8956e8dcf80 
+    ap-northeast-2: 
+        AMI: ami-047f7b46bd6dd5d84 
+    sa-east-1: 
+        AMI: ami-0669a96e355eac82f 
+    ap-northeast-3: 
+        AMI: ami-088d713d672ed235e 
+    ap-northeast-1: 
+        AMI: ami-0f9ae750e8274075b 
+    ap-southeast-1: 
+        AMI: ami-0b419c3a4b01d1859 
+    us-east-2: 
+        AMI: ami-02bcbb802e03574ba 
+    ap-southeast-2: 
+        AMI: ami-04481c741a0311bbb 
+    cn-northwest-1: 
+        AMI: ami-094b7433620966eb5 
+    eu-west-1: 
+        AMI: ami-07683a44e80cd32c5 
+    eu-north-1: 
+        AMI: ami-d16fe6af 
+    ap-south-1: 
+        AMI: ami-0889b8a448de4fc44 
+    eu-west-3: 
+        AMI: ami-0451ae4fd8dd178f7 
+    eu-west-2: 
+        AMI: ami-09ead922c1dad67e4 
+    ca-central-1: 
+        AMI: ami-03338e1f67dae0168 
+    us-west-2: 
+        AMI: ami-061392db613a6357b 
+      
+
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow connection to FlockData UI
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 8000
+        IpProtocol: tcp
+        ToPort: 15500
+      - CidrIp:
+          Ref: SSHAccessLocation
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
+  EC2Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        KeyName: !Ref KeyPair
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - AMI
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+          - !Ref InstanceSecurityGroup
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              VolumeSize: 30
+        Tags: 
+          - Key: Name
+            Value: !Ref InstanceName
+        UserData:
+          Fn::Base64:
+            Fn::Join:
+            - ''
+            - - "#!/bin/bash -v\n"
+              - "sudo yum update -y\n"
+              - "sudo yum install -y git docker\n"
+              - "sudo curl -L https://github.com/docker/compose/releases/download/1.21.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose\n"
+              - "sudo chmod +x /usr/local/bin/docker-compose\n"
+              - "sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose\n"
+              - "cd /\n"
+              - "sudo git clone https://github.com/alpalwal/fd-demo\n"
+              - "cd /fd-demo/\n"
+              - "sudo sysctl -w vm.max_map_count=262144\n"
+              - "sudo service docker start\n"
+              - "sudo docker-compose up -d\n"
+              - "sudo docker-compose run fd-shell -it\n"
+
+Outputs:
+  PublicIp:
+    Value:
+      Fn::GetAtt:
+      - EC2Instance
+      - PublicIp
+    Description: Instance IP
+
