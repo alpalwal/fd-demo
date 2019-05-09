@@ -31,6 +31,13 @@ services:
     ports:
       - '9200:9200'
       - '9300:9300'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       - fd-es:/usr/share/elasticsearch/data
     expose:
@@ -39,13 +46,14 @@ services:
     environment:
       - network.host=_global_
       - net=host
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   fd-shell:
     container_name: fdemo-shell
     image: flockdata/fd-shell
-#     docker-compose run fd-shell -it
-    # docker-compose run fd-client fdregister -u=demo:123 -l=demo
-    # docker-compose run fd-client fdcountries -u=demo:123
+    #  docker-compose run fd-shell -it
+    #  docker-compose run fd-client fdregister -u=demo:123 -l=demo
+    #  docker-compose run fd-client fdcountries -u=demo:123
     environment:
       org.fd.engine.api: 'http://fd-engine:15001'
       org.fd.client.batchsize: 1
@@ -78,7 +86,7 @@ services:
       - rabbit
 
     environment:
-#      _JAVA_OPTIONS: "-Xmx2g -Xdebug -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=61000"
+      # _JAVA_OPTIONS: "-Xmx2g -Xdebug -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=61000"
       _JAVA_OPTIONS: "-Xmx2g"
       server.port: 15001
       spring.profiles.active: fd-server,fd-auth-test
@@ -99,7 +107,7 @@ services:
 
     links:
       - rabbit
-  #      - eureka
+      # - eureka
 
   fd-search:
     container_name: fdemo-search
@@ -112,7 +120,7 @@ services:
     depends_on:
       - elasticsearch
       - rabbit
-    #      - eureka
+      # - eureka
 
     links:
       - rabbit
@@ -154,7 +162,7 @@ services:
 
     depends_on:
       - rabbit
-      #      - eureka
+      # - eureka
       - riak
 
     environment:
@@ -178,14 +186,14 @@ services:
     volumes:
       - ./data/riak:/data/riak
 
-  #  fd-view:
-#      container_name: fdemo-view
-#      image: flockdata/fd-view
-#      ports:
-#        - '15000:15000'
-#
-#      environment:
-#        ENGINE_URL: 'http://fd-engine:15001'
+  # fd-view:
+  #   container_name: fdemo-view
+  #   image: flockdata/fd-view
+  #   ports:
+  #     - '15000:15000'
+
+  #   environment:
+  #     ENGINE_URL: 'http://fd-engine:15001'
 
 # Monitoring tools
 #  eureka:
