@@ -1,0 +1,138 @@
+# Flockdata demo CFT
+# Runs in the default VPC. If you don't have a default VPC, it'll fail
+# All parameters are required
+
+Parameters: 
+  InstanceType: 
+    Type: String
+    Default: m5.large
+    AllowedValues: 
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+    Description: Instance size for the Divvy system
+  VpcId:
+    Description: VPC Id for the instance to be deployed in
+    Type: AWS::EC2::VPC::Id
+    Default: ''
+  KeyPair:
+    Description: Key pair for the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ''
+  InstanceName:
+    Default: 'FD-Demo'
+    Description: Instance Name
+    Type: String
+  SSHAccessLocation:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+    Description: The IP address range that the instance will be open on for port 22
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+
+Mappings:
+  RegionMap:
+    ap-east-1:
+      AMI: ami-9ea0d8ef
+    ap-northeast-1:
+      AMI: ami-032cf5e284518543d
+    ap-northeast-2:
+      AMI: ami-06d2ca2471c251818
+    ap-northeast-3:
+      AMI: ami-0dd67b62d9f8adc65
+    ap-south-1:
+      AMI: ami-027d1dd332103051b
+    ap-southeast-1:
+      AMI: ami-0c2e7524d47186df7
+    ap-southeast-2:
+      AMI: ami-035c8e816223729a6
+    ca-central-1:
+      AMI: ami-0b08c6831ffd5ea84
+    cn-north-1:
+      AMI: ami-04060e657afb51a27
+    cn-northwest-1:
+      AMI: ami-0b92d6766d8e7fac0
+    eu-central-1:
+      AMI: ami-05b5a98cd34853d29
+    eu-north-1:
+      AMI: ami-1b33bb65
+    eu-west-1:
+      AMI: ami-08b1cea5487c762b3
+    eu-west-2:
+      AMI: ami-0ee246e709782b1be
+    eu-west-3:
+      AMI: ami-074f4c146d4f5d466
+    sa-east-1:
+      AMI: ami-0fcd3565c065e9238
+    us-east-1:
+      AMI: ami-095192256fe1477ad
+    us-east-2:
+      AMI: ami-02fd7546f0f6effb6
+    us-west-1:
+      AMI: ami-03c9dad75296f9e90
+    us-west-2:
+      AMI: ami-04aac3d7ea7609469
+      
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow connection to FlockData UI
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 8000
+        IpProtocol: tcp
+        ToPort: 15500
+      - CidrIp:
+          Ref: SSHAccessLocation
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
+  EC2Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        KeyName: !Ref KeyPair
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - AMI
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+          - !Ref InstanceSecurityGroup
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              VolumeSize: 30
+        Tags: 
+          - Key: Name
+            Value: !Ref InstanceName
+        UserData:
+          Fn::Base64:
+            Fn::Join:
+            - ''
+            - - "#!/bin/bash -v\n"
+              - "sudo apt update -y\n"
+              - "sudo apt install docker.io -y\n"
+              - "sudo curl -L https://github.com/docker/compose/releases/download/1.21.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/bin/docker-compose\n"
+              - "sudo chmod +x /usr/bin/docker-compose\n"
+              - "git clone https://github.com/alpalwal/fd-demo\n"
+              - "cd fd-demo/\n"
+              - "sudo sysctl -w vm.max_map_count=262144\n"
+              - "sudo service docker start\n"
+              - "sudo docker-compose up -d\n"
+              - "sudo docker ps\n"
+              - "sudo docker-compose run fd-shell -it\n"
+
+
+Outputs:
+  PublicIp:
+    Value:
+      Fn::GetAtt:
+      - EC2Instance
+      - PublicIp
+    Description: Instance IP
+
