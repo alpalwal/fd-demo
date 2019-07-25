@@ -11,10 +11,10 @@ Parameters:
       - m5.xlarge
       - m5.2xlarge
     Description: Instance size for the Divvy system
-  VpcId:
-    Description: VPC Id for the instance to be deployed in
-    Type: AWS::EC2::VPC::Id
-    Default: ''
+  # VpcId:
+  #   Description: VPC Id for the instance to be deployed in
+  #   Type: AWS::EC2::VPC::Id
+  #   Default: ''
   KeyPair:
     Description: Key pair for the instance
     Type: AWS::EC2::KeyPair::KeyName
@@ -80,7 +80,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow connection to FlockData UI
-      VpcId: !Ref VpcId
+
       SecurityGroupIngress:
       - CidrIp: 0.0.0.0/0
         FromPort: 8000

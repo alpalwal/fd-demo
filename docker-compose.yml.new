@@ -143,6 +143,20 @@ services:
     depends_on:
       - fd-engine
 
+
+  fd-shell:
+    container_name: fdemo-shell
+    image: flockdata/fd-shell
+    #  docker-compose run fd-shell -it
+    #  docker-compose run fd-client fdregister -u=demo:123 -l=demo
+    #  docker-compose run fd-client fdcountries -u=demo:123
+    environment:
+      org.fd.engine.api: 'http://fd-engine:15001'
+      org.fd.client.batchsize: 1
+      org.fd.client.http.user: demo
+      org.fd.client.http.pass: 123
+      spring.rabbitmq.host: rabbit
+      
   #  fd-store:
   #    container_name: fdemo-store
   #    image: flockdata/fd-store:0.98.10-SNAPSHOT
@@ -232,4 +246,3 @@ volumes:
   fd-neo: {}
 
   fd-riak: {}
-
